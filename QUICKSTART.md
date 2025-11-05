@@ -24,10 +24,37 @@
 
 ## Usage Examples
 
-### Search Everything
+### Search Everything (Summary)
 ```bash
-poetry run azdo-harvest search "TODO" --organization myorg
+poetry run azdo-harvest search "TODO" --organization myorg --project myproject
 ```
+
+Output:
+```
+✓ Found 5 repositories and 23 files
+```
+
+### Search with Verbose Output
+```bash
+poetry run azdo-harvest search "config" --organization myorg --project MyProject --verbose
+```
+
+### Download Files
+```bash
+poetry run azdo-harvest search "file:Dockerfile" \
+  --organization myorg \
+  --project myproject \
+  --download \
+  --output-dir ./dockerfiles
+```
+
+This will:
+- Search for all Dockerfiles
+- Download them in parallel (5 workers)
+- Save as `{repo}__{filename}__{hash}.{ext}` format
+  - Example: `docker-test__Dockerfile__a4b3c5d7`
+  - Hash is first 8 chars of SHA256
+- Show progress bar
 
 ### Search Specific Project
 ```bash
@@ -36,17 +63,17 @@ poetry run azdo-harvest search "config" --organization myorg --project MyProject
 
 ### Search Only Files
 ```bash
-poetry run azdo-harvest search "function main" --organization myorg --file-only
+poetry run azdo-harvest search "function main" --organization myorg --project myproject --file-only
 ```
 
 ### Search Only Repositories
 ```bash
-poetry run azdo-harvest search "api" --organization myorg --repo-only
+poetry run azdo-harvest search "api" --organization myorg --project myproject --repo-only
 ```
 
 ### Limit Results
 ```bash
-poetry run azdo-harvest search "test" --organization myorg --limit 20
+poetry run azdo-harvest search "test" --organization myorg --project myproject --limit 20
 ```
 
 ## Testing
