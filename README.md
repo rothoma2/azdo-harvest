@@ -1,5 +1,9 @@
 # Azure DevOps Harvester
 
+[![PyPI version](https://badge.fury.io/py/azdo-harvest.svg)](https://badge.fury.io/py/azdo-harvest)
+[![Python Version](https://img.shields.io/pypi/pyversions/azdo-harvest.svg)](https://pypi.org/project/azdo-harvest/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A CLI tool and Python library to search repositories and files in Azure DevOps organizations, with built-in support for downloading matched files.
 
 ## Features
@@ -7,16 +11,25 @@ A CLI tool and Python library to search repositories and files in Azure DevOps o
 - 🔍 Search across all repositories in an organization
 - 📁 Search file contents using Azure DevOps Code Search API
 - 🎯 Filter by specific projects
-- 📥 Download matched files using Git Items API
+- 📥 Download matched files using Git Items API with hash-based naming
 - 📊 Beautiful formatted output with Rich
-- ⚡ Fast and efficient API usage
+- ⚡ Parallel downloads with 5 concurrent workers
+- 🔐 SHA256 hash verification for downloaded files
 - 🐍 Python library for programmatic access
 
 ## Installation
 
-Install the package using Poetry:
+### From PyPI (Recommended)
 
 ```bash
+pip install azdo-harvest
+```
+
+### From Source
+
+```bash
+git clone https://github.com/rothoma2/azdo-harvest.git
+cd azdo-harvest
 poetry install
 ```
 
@@ -244,6 +257,42 @@ export AZDO_PROJECT="your-project"
 python examples/download_files.py
 ```
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Development Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/rothoma2/azdo-harvest.git
+cd azdo-harvest
+
+# Install dependencies
+poetry install --with dev
+
+# Run tests
+poetry run pytest
+
+# Run tests with coverage
+poetry run pytest --cov=azdo_harvest --cov-report=html
+```
+
+### Building and Publishing
+
+See [PUBLISHING.md](PUBLISHING.md) for detailed instructions on publishing to PyPI.
+
+Quick reference:
+```bash
+# Bump version
+poetry version patch  # or minor/major
+
+# Build package
+poetry build
+
+# Publish (via GitHub release - see PUBLISHING.md)
+```
+
 ## Requirements
 
 - Python >= 3.12
@@ -252,4 +301,15 @@ python examples/download_files.py
 
 ## License
 
-MIT
+MIT - See [LICENSE](LICENSE) file for details
+
+## Author
+
+**rothoma2** - [GitHub](https://github.com/rothoma2)
+
+## Acknowledgments
+
+- Built with [Poetry](https://python-poetry.org/)
+- CLI built with [Click](https://click.palletsprojects.com/)
+- Beautiful output with [Rich](https://rich.readthedocs.io/)
+- Published to [PyPI](https://pypi.org/project/azdo-harvest/)
