@@ -19,18 +19,17 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Utilities",
 ]
+dependencies = [
+    "click>=8.1.0",
+    "requests>=2.31.0",
+    "rich>=13.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/rothoma2/azdo-harvest"
 Repository = "https://github.com/rothoma2/azdo-harvest"
 Issues = "https://github.com/rothoma2/azdo-harvest/issues"
 Documentation = "https://github.com/rothoma2/azdo-harvest#readme"
-
-dependencies = [
-    "click>=8.1.0",
-    "requests>=2.31.0",
-    "rich>=13.0.0",
-]
 
 [project.optional-dependencies]
 dev = [
