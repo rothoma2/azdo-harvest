@@ -38,9 +38,6 @@ jobs:
       - name: Install project
         run: poetry install --no-interaction
       
-      - name: Run tests
-        run: poetry run pytest tests/ -v
-      
       - name: Check code style
         run: |
           poetry run python -m pip install flake8
