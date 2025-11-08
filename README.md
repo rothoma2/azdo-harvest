@@ -4,7 +4,8 @@
 [![Python Version](https://img.shields.io/pypi/pyversions/azdo-harvest.svg)](https://pypi.org/project/azdo-harvest/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A CLI tool and Python library to search repositories and files in Azure DevOps organizations, with built-in support for downloading matched files.
+A CLI tool and Python library to search across Azure Devops repositories, with built-in support for downloading matched files.
+It utilizes Azure Devops APIs for Search, and Retrieval. 
 
 ## Features
 
@@ -77,14 +78,6 @@ Project: myproject
 ✓ Found 2 repositories and 2 files
 ```
 
-### Verbose Mode
-
-Use `--verbose` or `-v` to see detailed tables:
-
-```bash
-azdo-harvest search "TODO" --organization myorg --project myproject --verbose
-```
-
 ### Download Files
 
 Use `--download` or `-d` to automatically download all found files:
@@ -104,12 +97,14 @@ Specify custom output directory:
 azdo-harvest search "file:*.py" -o myorg -p myproject --download --output-dir ./my-files
 ```
 
-**Features:**
-- ⚡ Parallel downloads with 5 concurrent workers
-- 📊 Progress bar showing download status
-- ✓ Success/failure summary
-- 🎯 Unique file naming: `repo__filename__hash.ext`
-- 🔐 SHA256 hash for file verification
+### Verbose Mode
+
+Use `--verbose` or `-v` to see detailed tables:
+
+```bash
+azdo-harvest search "TODO" --organization myorg --project myproject --verbose
+```
+
 
 ### Search Options
 
@@ -148,6 +143,14 @@ azdo-harvest search "file:Dockerfile" \
   --output-dir ./dockerfiles \
   --verbose
 ```
+
+**Features:**
+- ⚡ Parallel downloads with 5 concurrent workers
+- 📊 Progress bar showing download status
+- ✓ Success/failure summary
+- 🎯 Unique file naming: `repo__filename__hash.ext`
+- 🔐 SHA256 hash for file verification
+
 
 ## Command Reference
 
@@ -208,89 +211,6 @@ output_path = searcher.downloader.download_file(
 
 # Or get file content without downloading
 content = searcher.downloader.get_file_content(results['files'][0])
-```
-
-### FileResult Object
-
-Each file search result is a `FileResult` object with the following attributes:
-
-- `repository`: Repository name
-- `repository_id`: Repository ID (for API calls)
-- `project`: Project name
-- `project_id`: Project ID
-- `filepath`: Full path to the file
-- `branch`: Branch name (e.g., "main")
-- `commit_id`: Commit hash
-- `organization`: Organization name
-- `filename`: Just the filename
-
-Methods:
-- `get_download_url()`: Generate the Azure DevOps API URL for downloading
-- `get_download_params()`: Get parameters dict for download API call
-
-## Development
-
-### Running locally
-
-```bash
-poetry run azdo-harvest search "term" --organization myorg --project myproject
-```
-
-### Running tests
-
-```bash
-poetry run pytest
-```
-
-### Examples
-
-See the `examples/` directory for more usage examples:
-
-- `basic_usage.py`: Basic search examples
-- `download_files.py`: Download files from search results
-
-Run examples:
-```bash
-export AZDO_PAT="your-token"
-export AZDO_ORG="your-org"
-export AZDO_PROJECT="your-project"
-python examples/download_files.py
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-### Development Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/rothoma2/azdo-harvest.git
-cd azdo-harvest
-
-# Install dependencies
-poetry install --with dev
-
-# Run tests
-poetry run pytest
-
-# Run tests with coverage
-poetry run pytest --cov=azdo_harvest --cov-report=html
-```
-
-### Building and Publishing
-
-See [PUBLISHING.md](PUBLISHING.md) for detailed instructions on publishing to PyPI.
-
-Quick reference:
-```bash
-# Bump version
-poetry version patch  # or minor/major
-
-# Build package
-poetry build
-
-# Publish (via GitHub release - see PUBLISHING.md)
 ```
 
 ## Requirements
