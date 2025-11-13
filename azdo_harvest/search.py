@@ -72,7 +72,7 @@ class AzureDevOpsSearcher:
         self,
         search_term: str,
         project: Optional[str] = None,
-        max_results: int = 100
+        max_results: int = 1000
     ) -> List[Dict[str, Any]]:
         """Search for repositories by name.
 
