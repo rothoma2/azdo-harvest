@@ -31,8 +31,14 @@ def main():
     help='Specific project to search (optional)'
 )
 @click.option(
-    '--pat', '--token', envvar='AZDO_PAT', required=True,
+    '--pat', '--token', envvar='AZDO_PAT',
     help='Personal Access Token (can also use AZDO_PAT env var)'
+)
+@click.option(
+    '--auth-method', type=click.Choice(['pat', 'az-cli']),
+    envvar='AZDO_AUTH_METHOD', default='pat',
+    show_default=True,
+    help="Authentication method. 'az-cli' uses the current 'az login' session."
 )
 @click.option(
     '--file-only', is_flag=True, help='Search only in file contents'
@@ -52,8 +58,8 @@ def main():
     help='Directory to save downloaded files'
 )
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed results')
-def search(search_term, organization, project, pat, file_only, repo_only,
-           limit, download, output_dir, verbose):
+def search(search_term, organization, project, pat, auth_method, file_only,
+           repo_only, limit, download, output_dir, verbose):
     """Search for repositories and files in Azure DevOps.
 
     SEARCH_TERM: The term to search for in repositories and files.
@@ -67,7 +73,17 @@ def search(search_term, organization, project, pat, file_only, repo_only,
     if project:
         console.print(f"[bold blue]Project:[/bold blue] {project}")
 
-    searcher = AzureDevOpsSearcher(organization, project, pat)
+    if auth_method == 'pat' and not pat:
+        raise click.UsageError(
+            "PAT authentication requires --pat or AZDO_PAT; "
+            "use --auth-method az-cli for Azure CLI authentication."
+        )
+    searcher = AzureDevOpsSearcher(
+        organization,
+        project,
+        personal_access_token=pat,
+        use_azure_cli=auth_method == 'az-cli',
+    )
 
     try:
         with console.status("[bold green]Searching Azure DevOps..."):

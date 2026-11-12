@@ -1,20 +1,24 @@
 """File download functionality for Azure DevOps."""
 import requests
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 from azdo_harvest.models import FileResult
 
 
 class FileDownloader:
     """Download files from Azure DevOps using the Git Items API."""
 
-    def __init__(self, headers: dict):
+    def __init__(self, headers: dict | Callable[[], dict]):
         """Initialize the file downloader.
 
         Args:
-            headers: Authentication headers to use for API requests
+            headers: Authentication headers or a callable returning current
+                authentication headers
         """
         self.headers = headers
+
+    def _get_headers(self) -> dict:
+        return self.headers() if callable(self.headers) else self.headers
 
     def download_file(
         self,
@@ -44,7 +48,7 @@ class FileDownloader:
         try:
             response = requests.get(
                 url,
-                headers=self.headers,
+                headers=self._get_headers(),
                 timeout=30
             )
             response.raise_for_status()
@@ -119,7 +123,7 @@ class FileDownloader:
         try:
             response = requests.get(
                 url,
-                headers=self.headers,
+                headers=self._get_headers(),
                 timeout=30
             )
             response.raise_for_status()

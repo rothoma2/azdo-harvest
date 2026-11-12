@@ -36,7 +36,9 @@ poetry install
 
 ## Configuration
 
-The tool requires a Personal Access Token (PAT) from Azure DevOps with at least **Code (Read)** permissions.
+The tool supports either a Personal Access Token (PAT) or a short-lived
+Microsoft Entra token obtained from Azure CLI. The Azure CLI option is useful
+for tenants where PAT creation is disabled.
 
 ### Creating a PAT
 
@@ -58,6 +60,25 @@ You can provide the PAT in two ways:
    ```bash
    azdo-harvest search "term" --organization myorg --project myproject
    ```
+
+#### Azure CLI authentication
+
+Install the [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli),
+sign in with an account that can access the Azure DevOps organization, and use
+the `az-cli` authentication method:
+
+```bash
+az login
+azdo-harvest search "file:Dockerfile" \
+  --organization myorg \
+  --project myproject \
+  --auth-method az-cli
+```
+
+The application runs `az account get-access-token` for the Azure DevOps
+resource and sends the resulting token as a Bearer token. Tokens are cached
+until one minute before expiry and then refreshed automatically. No PAT is
+stored or required in this mode.
 
 ## Usage
 
@@ -163,7 +184,8 @@ Arguments:
 Options:
   -o, --organization TEXT  Azure DevOps organization name [required]
   -p, --project TEXT       Project name [required]
-  --pat TEXT              Personal Access Token (or set AZDO_PAT env var) [required]
+  --pat TEXT              Personal Access Token (or set AZDO_PAT env var)
+  --auth-method [pat|az-cli]  Authentication method (or AZDO_AUTH_METHOD) [default: pat]
   --file-only             Search only in file contents
   --repo-only             Search only repository names
   -l, --limit INTEGER     Maximum number of results [default: 100]
@@ -213,11 +235,23 @@ output_path = searcher.downloader.download_file(
 content = searcher.downloader.get_file_content(results['files'][0])
 ```
 
+To use Azure CLI authentication from Python:
+
+```python
+from azdo_harvest import AzureDevOpsSearcher
+
+searcher = AzureDevOpsSearcher(
+    "your-org", "your-project", use_azure_cli=True
+)
+results = searcher.search("file:Dockerfile", project="your-project")
+```
+
 ## Requirements
 
 - Python >= 3.12
 - Azure DevOps organization with Code Search enabled
-- Personal Access Token with Code (Read) permissions
+- Personal Access Token with Code (Read) permissions, or Azure CLI access to
+  the organization
 
 ## License
 
