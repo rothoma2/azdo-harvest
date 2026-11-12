@@ -204,7 +204,7 @@ def download_files_parallel(searcher, file_results, output_dir):
             import requests
             response = requests.get(
                 url,
-                headers=searcher.downloader.headers,
+                headers=searcher.headers,
                 timeout=30
             )
             response.raise_for_status()
