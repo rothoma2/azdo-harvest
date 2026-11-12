@@ -78,10 +78,15 @@ def search(search_term, organization, project, pat, auth_method, file_only,
             "PAT authentication requires --pat or AZDO_PAT; "
             "use --auth-method az-cli for Azure CLI authentication."
         )
+
+    # Click populates ``pat`` from AZDO_PAT even when Azure CLI auth was
+    # selected. Do not pass that unrelated environment value to the auth
+    # provider, otherwise it quite correctly rejects both methods at once.
+    pat_for_auth = pat if auth_method == 'pat' else None
     searcher = AzureDevOpsSearcher(
         organization,
         project,
-        personal_access_token=pat,
+        personal_access_token=pat_for_auth,
         use_azure_cli=auth_method == 'az-cli',
     )
 
