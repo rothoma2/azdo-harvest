@@ -1,34 +1,42 @@
 """Azure DevOps search functionality using the REST API."""
-import base64
 import requests
 from typing import Optional, Dict, List, Any
 from azdo_harvest.models import FileResult
 from azdo_harvest.downloader import FileDownloader
+from azdo_harvest.auth import AzureDevOpsAuth
 
 
 class AzureDevOpsSearcher:
     """Client for searching Azure DevOps repositories and files."""
 
     def __init__(self, organization: str, project: str,
-                 personal_access_token: str):
+                 personal_access_token: Optional[str] = None,
+                 use_azure_cli: bool = False,
+                 az_command: str = "az"):
         """Initialize the Azure DevOps searcher.
 
         Args:
             organization: Azure DevOps organization name
             personal_access_token: Personal Access Token for authentication
+            use_azure_cli: Obtain a short-lived token using Azure CLI
+            az_command: Azure CLI executable to use
         """
 
         self.organization = organization
         self.base_url = f"https://dev.azure.com/{organization}"
         self.search_url = f"https://almsearch.dev.azure.com/{organization}"
 
-        auth_string = f":{personal_access_token}"
-        b64_auth = base64.b64encode(auth_string.encode()).decode()
-        self.headers = {
-            "Authorization": f"Basic {b64_auth}",
-            "Content-Type": "application/json"
-        }
-        self.downloader = FileDownloader(self.headers)
+        self.auth = AzureDevOpsAuth(
+            personal_access_token=personal_access_token,
+            use_azure_cli=use_azure_cli,
+            az_command=az_command,
+        )
+        self.downloader = FileDownloader(self.auth.headers)
+
+    @property
+    def headers(self) -> dict[str, str]:
+        """Return current authentication headers (kept for compatibility)."""
+        return self.auth.headers()
 
     def search(
         self,
@@ -101,7 +109,7 @@ class AzureDevOpsSearcher:
         try:
             response = requests.post(
                 url,
-                headers=self.headers,
+                headers=self.auth.headers(),
                 json=payload,
                 params=params,
                 timeout=30
@@ -158,7 +166,7 @@ class AzureDevOpsSearcher:
         try:
             response = requests.post(
                 url,
-                headers=self.headers,
+                headers=self.auth.headers(),
                 json=payload,
                 params=params,
                 timeout=30
