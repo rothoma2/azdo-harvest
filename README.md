@@ -261,6 +261,20 @@ searcher = AzureDevOpsSearcher(
 results = searcher.search("file:Dockerfile", project="your-project")
 ```
 
+### List repositories
+
+After running `az login`, list repositories visible to the current account and
+write their names to a text file:
+
+```bash
+python -m examples.list_repositories \
+  --organization myorg \
+  --output repositories.txt
+```
+
+Use `--project MyProject` to limit the inventory to one project. The utility
+prints the total count and writes one repository name per line.
+
 ## Requirements
 
 - Python >= 3.12
