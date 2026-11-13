@@ -33,7 +33,7 @@ def main():
 @click.option(
     '--repository-list', type=click.Path(exists=True, dir_okay=False,
                                           path_type=Path),
-    help='File with one repository name per line; searched in batches of 900'
+    help='File with one repository name per line; searched in batches of 500'
 )
 @click.option(
     '--pat', '--token', envvar='AZDO_PAT',

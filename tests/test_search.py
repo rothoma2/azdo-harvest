@@ -88,8 +88,8 @@ def test_repository_list_is_searched_in_batches_and_combined(mock_post):
         "repo-1", "repo-901"
     ]
     filters = [call.kwargs["json"]["filters"] for call in mock_post.call_args_list]
-    assert len(filters[0]["Repository"]) == 900
-    assert len(filters[1]["Repository"]) == 1
+    assert len(filters[0]["Repository"]) == 500
+    assert len(filters[1]["Repository"]) == 401
 
 
 @patch("azdo_harvest.search.CODE_SEARCH_PAGE_SIZE", 2)

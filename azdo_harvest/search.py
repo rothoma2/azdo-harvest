@@ -7,7 +7,8 @@ from azdo_harvest.auth import AzureDevOpsAuth
 
 
 CODE_SEARCH_PAGE_SIZE = 1000
-REPOSITORY_BATCH_SIZE = 900
+REPOSITORY_BATCH_SIZE = 500
+CODE_SEARCH_TIMEOUT_SECONDS = 120
 
 
 class AzureDevOpsSearcher:
@@ -60,7 +61,7 @@ class AzureDevOpsSearcher:
             search_repos: Whether to search repository names
             max_results: Maximum number of results per search type
             repository_names: Optional repository allowlist, sent in batches
-                of 900 names.
+                of 500 names.
 
         Returns:
             Dictionary with 'repositories' (list of dicts) and
@@ -261,7 +262,7 @@ class AzureDevOpsSearcher:
                     headers=self.auth.headers(),
                     json=page_payload,
                     params=params,
-                    timeout=30
+                    timeout=CODE_SEARCH_TIMEOUT_SECONDS
                 )
                 response.raise_for_status()
                 data = response.json()

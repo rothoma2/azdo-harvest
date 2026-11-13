@@ -156,7 +156,7 @@ azdo-harvest search "test" --organization myorg --project myproject --limit 50
 ### Search a repository list
 
 Provide a text file containing one repository name per line. The names are
-sent to Azure DevOps in batches of 900 and the results are combined and
+sent to Azure DevOps in batches of 500 and the results are combined and
 deduplicated before display:
 
 ```bash
@@ -215,7 +215,7 @@ Arguments:
 Options:
   -o, --organization TEXT  Azure DevOps organization name [required]
   -p, --project TEXT       Project name (optional)
-  --repository-list PATH   File with one repository name per line (batches of 900)
+  --repository-list PATH   File with one repository name per line (batches of 500)
   --pat TEXT              Personal Access Token (or set AZDO_PAT env var)
   --auth-method [pat|az-cli]  Authentication method (or AZDO_AUTH_METHOD) [default: pat]
   --file-only             Search only in file contents
