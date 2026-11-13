@@ -6,6 +6,9 @@ from azdo_harvest.downloader import FileDownloader
 from azdo_harvest.auth import AzureDevOpsAuth
 
 
+CODE_SEARCH_PAGE_SIZE = 1000
+
+
 class AzureDevOpsSearcher:
     """Client for searching Azure DevOps repositories and files."""
 
@@ -97,8 +100,6 @@ class AzureDevOpsSearcher:
 
         payload = {
             "searchText": search_term,
-            "$top": max_results,
-            "$skip": 0
         }
 
         if project:
@@ -107,26 +108,27 @@ class AzureDevOpsSearcher:
             }
 
         try:
-            response = requests.post(
-                url,
-                headers=self.auth.headers(),
-                json=payload,
-                params=params,
-                timeout=30
-            )
-            response.raise_for_status()
-            data = response.json()
-
             repositories = []
-            for result in data.get('results', []):
-                repo_info = {
-                    'name': result.get('repository', {}).get('name', 'N/A'),
-                    'project': result.get('project', {}).get('name', 'N/A'),
-                    'url': result.get('repository', {}).get(
-                        'remoteUrl', 'N/A'
+            seen = set()
+            for data in self._search_pages(
+                url, params, payload, max_results
+            ):
+                for result in data.get('results', []):
+                    repo = result.get('repository', {})
+                    project = result.get('project', {})
+                    repo_info = {
+                        'name': repo.get('name', 'N/A'),
+                        'project': project.get('name', 'N/A'),
+                        'url': repo.get('remoteUrl', 'N/A')
+                    }
+                    key = (
+                        project.get('id', repo_info['project']),
+                        repo.get('id', repo_info['name']),
+                        repo_info['url'],
                     )
-                }
-                repositories.append(repo_info)
+                    if key not in seen:
+                        seen.add(key)
+                        repositories.append(repo_info)
 
             return repositories
 
@@ -154,8 +156,6 @@ class AzureDevOpsSearcher:
 
         payload = {
             "searchText": search_term,
-            "$top": max_results,
-            "$skip": 0
         }
 
         if project:
@@ -164,46 +164,118 @@ class AzureDevOpsSearcher:
             }
 
         try:
-            response = requests.post(
-                url,
-                headers=self.auth.headers(),
-                json=payload,
-                params=params,
-                timeout=30
-            )
-            response.raise_for_status()
-            data = response.json()
-
             files = []
-            for result in data.get('results', []):
-                # Extract version information
-                versions = result.get('versions', [])
-                if versions:
-                    branch = versions[0].get('branchName', 'main')
-                    commit_id = versions[0].get('changeId')
-                else:
-                    branch = 'main'
-                    commit_id = None
+            seen = set()
+            for data in self._search_pages(
+                url, params, payload, max_results
+            ):
+                for result in data.get('results', []):
+                    # Extract version information
+                    versions = result.get('versions', [])
+                    if versions:
+                        branch = versions[0].get('branchName', 'main')
+                        commit_id = versions[0].get('changeId')
+                    else:
+                        branch = 'main'
+                        commit_id = None
 
-                # Create FileResult object
-                file_result = FileResult(
-                    repository=result.get('repository', {}).get(
-                        'name', 'N/A'
-                    ),
-                    repository_id=result.get('repository', {}).get('id'),
-                    project=result.get('project', {}).get('name', 'N/A'),
-                    project_id=result.get('project', {}).get(
-                        'id', '00000000-0000-0000-0000-000000000000'
-                    ),
-                    filepath=result.get('path', 'N/A'),
-                    branch=branch,
-                    commit_id=commit_id,
-                    organization=self.organization,
-                    filename=result.get('fileName', 'N/A')
-                )
-                files.append(file_result)
+                    # Create FileResult object
+                    repository = result.get('repository', {})
+                    project = result.get('project', {})
+                    file_result = FileResult(
+                        repository=repository.get('name', 'N/A'),
+                        repository_id=repository.get('id'),
+                        project=project.get('name', 'N/A'),
+                        project_id=project.get(
+                            'id', '00000000-0000-0000-0000-000000000000'
+                        ),
+                        filepath=result.get('path', 'N/A'),
+                        branch=branch,
+                        commit_id=commit_id,
+                        organization=self.organization,
+                        filename=result.get('fileName', 'N/A')
+                    )
+                    key = (
+                        file_result.project_id,
+                        file_result.repository_id or file_result.repository,
+                        file_result.filepath,
+                        file_result.branch,
+                    )
+                    if key not in seen:
+                        seen.add(key)
+                        files.append(file_result)
 
             return files
 
         except requests.exceptions.RequestException as e:
             raise Exception(f"Failed to search code: {str(e)}")
+
+    def _search_pages(
+        self,
+        url: str,
+        params: Dict[str, str],
+        payload: Dict[str, Any],
+        max_results: int,
+    ):
+        """Yield Code Search pages until ``max_results`` have been fetched.
+
+        Azure DevOps Code Search accepts ``$skip`` and ``$top`` in the request
+        body.  The service currently trims a page to at most 1,000 results, so
+        requests larger than that are split into multiple pages here.
+        """
+        if max_results <= 0:
+            return
+
+        skip = 0
+        previous_page_signature = None
+        while skip < max_results:
+            page_size = min(CODE_SEARCH_PAGE_SIZE, max_results - skip)
+            page_payload = dict(payload)
+            page_payload["$top"] = page_size
+            page_payload["$skip"] = skip
+
+            try:
+                response = requests.post(
+                    url,
+                    headers=self.auth.headers(),
+                    json=page_payload,
+                    params=params,
+                    timeout=30
+                )
+                response.raise_for_status()
+                data = response.json()
+            except requests.exceptions.RequestException as e:
+                if skip:
+                    raise Exception(
+                        "Failed to fetch Code Search page at skip="
+                        f"{skip}: {str(e)}. Azure DevOps may enforce its "
+                        "1,000-result search boundary; use narrower "
+                        "repository or path filters if this occurs."
+                    ) from e
+                raise
+
+            results = data.get('results', [])
+            if not results:
+                return
+
+            page_signature = tuple(
+                (
+                    result.get('project', {}).get('id'),
+                    result.get('repository', {}).get('id'),
+                    result.get('path'),
+                    result.get('fileName'),
+                )
+                for result in results
+            )
+            if page_signature == previous_page_signature:
+                raise Exception(
+                    "Azure DevOps returned the same Code Search page twice "
+                    f"at skip={skip}; pagination is not advancing."
+                )
+
+            yield data
+            previous_page_signature = page_signature
+            skip += len(results)
+
+            if len(results) < page_size:
+                return

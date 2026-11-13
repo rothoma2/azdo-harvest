@@ -153,6 +153,21 @@ azdo-harvest search "api" --organization myorg --project myproject --repo-only
 azdo-harvest search "test" --organization myorg --project myproject --limit 50
 ```
 
+When the limit is greater than 1,000, searches are requested in 1,000-result
+pages using Azure DevOps' `$skip` parameter. For example:
+
+```bash
+azdo-harvest search "TODO" \
+  --organization myorg \
+  --project myproject \
+  --limit 9000 \
+  --download
+```
+
+Azure DevOps may enforce a hard 1,000-result boundary for Code Search and
+reject pages beyond it. In that case, repeat the search with repository or
+path filters to split the result set into smaller searches.
+
 ### Complete example with all options
 
 ```bash
