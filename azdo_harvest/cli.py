@@ -27,8 +27,13 @@ def main():
     help='Azure DevOps organization name'
 )
 @click.option(
-    '--project', '-p', required=True,
+    '--project', '-p',
     help='Specific project to search (optional)'
+)
+@click.option(
+    '--repository-list', type=click.Path(exists=True, dir_okay=False,
+                                          path_type=Path),
+    help='File with one repository name per line; searched in batches of 900'
 )
 @click.option(
     '--pat', '--token', envvar='AZDO_PAT',
@@ -58,8 +63,9 @@ def main():
     help='Directory to save downloaded files'
 )
 @click.option('--verbose', '-v', is_flag=True, help='Show detailed results')
-def search(search_term, organization, project, pat, auth_method, file_only,
-           repo_only, limit, download, output_dir, verbose):
+def search(search_term, organization, project, repository_list, pat,
+           auth_method, file_only, repo_only, limit, download, output_dir,
+           verbose):
     """Search for repositories and files in Azure DevOps.
 
     SEARCH_TERM: The term to search for in repositories and files.
@@ -83,6 +89,13 @@ def search(search_term, organization, project, pat, auth_method, file_only,
     # selected. Do not pass that unrelated environment value to the auth
     # provider, otherwise it quite correctly rejects both methods at once.
     pat_for_auth = pat if auth_method == 'pat' else None
+    repository_names = None
+    if repository_list:
+        repository_names = [
+            line.strip()
+            for line in repository_list.read_text(encoding='utf-8').splitlines()
+            if line.strip() and not line.lstrip().startswith('#')
+        ]
     searcher = AzureDevOpsSearcher(
         organization,
         project,
@@ -97,7 +110,8 @@ def search(search_term, organization, project, pat, auth_method, file_only,
                 project=project,
                 search_files=not repo_only,
                 search_repos=not file_only,
-                max_results=limit
+                max_results=limit,
+                repository_names=repository_names,
             )
 
         display_results(results, verbose=verbose)

@@ -7,6 +7,7 @@ from azdo_harvest.auth import AzureDevOpsAuth
 
 
 CODE_SEARCH_PAGE_SIZE = 1000
+REPOSITORY_BATCH_SIZE = 900
 
 
 class AzureDevOpsSearcher:
@@ -47,7 +48,8 @@ class AzureDevOpsSearcher:
         project: Optional[str] = None,
         search_files: bool = True,
         search_repos: bool = True,
-        max_results: int = 100
+        max_results: int = 100,
+        repository_names: Optional[List[str]] = None,
     ) -> Dict[str, List]:
         """Search for repositories and files in Azure DevOps.
 
@@ -57,6 +59,8 @@ class AzureDevOpsSearcher:
             search_files: Whether to search in file contents
             search_repos: Whether to search repository names
             max_results: Maximum number of results per search type
+            repository_names: Optional repository allowlist, sent in batches
+                of 900 names.
 
         Returns:
             Dictionary with 'repositories' (list of dicts) and
@@ -69,12 +73,12 @@ class AzureDevOpsSearcher:
 
         if search_repos:
             results['repositories'] = self._search_repositories(
-                search_term, project, max_results
+                search_term, project, max_results, repository_names
             )
 
         if search_files:
             results['files'] = self._search_code(
-                search_term, project, max_results
+                search_term, project, max_results, repository_names
             )
 
         return results
@@ -83,7 +87,8 @@ class AzureDevOpsSearcher:
         self,
         search_term: str,
         project: Optional[str] = None,
-        max_results: int = 1000
+        max_results: int = 1000,
+        repository_names: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """Search for repositories by name.
 
@@ -98,37 +103,31 @@ class AzureDevOpsSearcher:
         url = f"{self.search_url}/_apis/search/codesearchresults"
         params = {"api-version": "7.1-preview.1"}
 
-        payload = {
-            "searchText": search_term,
-        }
-
-        if project:
-            payload["filters"] = {
-                "Project": [project]
-            }
-
         try:
             repositories = []
             seen = set()
-            for data in self._search_pages(
-                url, params, payload, max_results
-            ):
-                for result in data.get('results', []):
-                    repo = result.get('repository', {})
-                    project = result.get('project', {})
-                    repo_info = {
-                        'name': repo.get('name', 'N/A'),
-                        'project': project.get('name', 'N/A'),
-                        'url': repo.get('remoteUrl', 'N/A')
-                    }
-                    key = (
-                        project.get('id', repo_info['project']),
-                        repo.get('id', repo_info['name']),
-                        repo_info['url'],
-                    )
-                    if key not in seen:
-                        seen.add(key)
-                        repositories.append(repo_info)
+            for batch in self._repository_batches(repository_names):
+                remaining = max_results - len(repositories)
+                if remaining <= 0:
+                    break
+                payload = self._search_payload(search_term, project, batch)
+                for data in self._search_pages(url, params, payload, remaining):
+                    for result in data.get('results', []):
+                        repo = result.get('repository', {})
+                        project_info = result.get('project', {})
+                        repo_info = {
+                            'name': repo.get('name', 'N/A'),
+                            'project': project_info.get('name', 'N/A'),
+                            'url': repo.get('remoteUrl', 'N/A')
+                        }
+                        key = (
+                            project_info.get('id', repo_info['project']),
+                            repo.get('id', repo_info['name']),
+                            repo_info['url'],
+                        )
+                        if key not in seen:
+                            seen.add(key)
+                            repositories.append(repo_info)
 
             return repositories
 
@@ -139,7 +138,8 @@ class AzureDevOpsSearcher:
         self,
         search_term: str,
         project: Optional[str] = None,
-        max_results: int = 100
+        max_results: int = 100,
+        repository_names: Optional[List[str]] = None,
     ) -> List[FileResult]:
         """Search for code in files.
 
@@ -154,61 +154,82 @@ class AzureDevOpsSearcher:
         url = f"{self.search_url}/_apis/search/codesearchresults"
         params = {"api-version": "7.1-preview.1"}
 
-        payload = {
-            "searchText": search_term,
-        }
-
-        if project:
-            payload["filters"] = {
-                "Project": [project]
-            }
-
         try:
             files = []
             seen = set()
-            for data in self._search_pages(
-                url, params, payload, max_results
-            ):
-                for result in data.get('results', []):
-                    # Extract version information
-                    versions = result.get('versions', [])
-                    if versions:
-                        branch = versions[0].get('branchName', 'main')
-                        commit_id = versions[0].get('changeId')
-                    else:
-                        branch = 'main'
-                        commit_id = None
+            for batch in self._repository_batches(repository_names):
+                remaining = max_results - len(files)
+                if remaining <= 0:
+                    break
+                payload = self._search_payload(search_term, project, batch)
+                for data in self._search_pages(url, params, payload, remaining):
+                    for result in data.get('results', []):
+                        # Extract version information
+                        versions = result.get('versions', [])
+                        if versions:
+                            branch = versions[0].get('branchName', 'main')
+                            commit_id = versions[0].get('changeId')
+                        else:
+                            branch = 'main'
+                            commit_id = None
 
-                    # Create FileResult object
-                    repository = result.get('repository', {})
-                    project = result.get('project', {})
-                    file_result = FileResult(
-                        repository=repository.get('name', 'N/A'),
-                        repository_id=repository.get('id'),
-                        project=project.get('name', 'N/A'),
-                        project_id=project.get(
-                            'id', '00000000-0000-0000-0000-000000000000'
-                        ),
-                        filepath=result.get('path', 'N/A'),
-                        branch=branch,
-                        commit_id=commit_id,
-                        organization=self.organization,
-                        filename=result.get('fileName', 'N/A')
-                    )
-                    key = (
-                        file_result.project_id,
-                        file_result.repository_id or file_result.repository,
-                        file_result.filepath,
-                        file_result.branch,
-                    )
-                    if key not in seen:
-                        seen.add(key)
-                        files.append(file_result)
+                        # Create FileResult object
+                        repository = result.get('repository', {})
+                        project_info = result.get('project', {})
+                        file_result = FileResult(
+                            repository=repository.get('name', 'N/A'),
+                            repository_id=repository.get('id'),
+                            project=project_info.get('name', 'N/A'),
+                            project_id=project_info.get(
+                                'id', '00000000-0000-0000-0000-000000000000'
+                            ),
+                            filepath=result.get('path', 'N/A'),
+                            branch=branch,
+                            commit_id=commit_id,
+                            organization=self.organization,
+                            filename=result.get('fileName', 'N/A')
+                        )
+                        key = (
+                            file_result.project_id,
+                            file_result.repository_id or file_result.repository,
+                            file_result.filepath,
+                            file_result.branch,
+                        )
+                        if key not in seen:
+                            seen.add(key)
+                            files.append(file_result)
 
             return files
 
         except requests.exceptions.RequestException as e:
             raise Exception(f"Failed to search code: {str(e)}")
+
+    @staticmethod
+    def _repository_batches(repository_names: Optional[List[str]]):
+        """Yield repository filter batches, or one unfiltered search."""
+        if repository_names is None:
+            yield None
+            return
+
+        for start in range(0, len(repository_names), REPOSITORY_BATCH_SIZE):
+            yield repository_names[start:start + REPOSITORY_BATCH_SIZE]
+
+    @staticmethod
+    def _search_payload(
+        search_term: str,
+        project: Optional[str],
+        repository_names: Optional[List[str]],
+    ) -> Dict[str, Any]:
+        """Build a Code Search payload with optional scope filters."""
+        payload: Dict[str, Any] = {"searchText": search_term}
+        filters: Dict[str, List[str]] = {}
+        if project:
+            filters["Project"] = [project]
+        if repository_names is not None:
+            filters["Repository"] = repository_names
+        if filters:
+            payload["filters"] = filters
+        return payload
 
     def _search_pages(
         self,

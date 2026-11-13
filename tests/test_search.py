@@ -55,6 +55,43 @@ def test_code_search_paginates_beyond_1000_results(mock_post):
     ]
 
 
+@patch("azdo_harvest.search.requests.post")
+def test_repository_list_is_searched_in_batches_and_combined(mock_post):
+    mock_post.side_effect = [
+        _response([{
+            "repository": {
+                "id": "repo-1",
+                "name": "repo-1",
+                "remoteUrl": "https://example/repo-1",
+            },
+            "project": {"id": "project-id", "name": "project"},
+        }]),
+        _response([{
+            "repository": {
+                "id": "repo-901",
+                "name": "repo-901",
+                "remoteUrl": "https://example/repo-901",
+            },
+            "project": {"id": "project-id", "name": "project"},
+        }]),
+    ]
+    searcher = AzureDevOpsSearcher("org", "project", "pat")
+
+    results = searcher.search(
+        "term",
+        search_files=False,
+        max_results=10,
+        repository_names=[f"repo-{number}" for number in range(1, 902)],
+    )
+
+    assert [repo["name"] for repo in results["repositories"]] == [
+        "repo-1", "repo-901"
+    ]
+    filters = [call.kwargs["json"]["filters"] for call in mock_post.call_args_list]
+    assert len(filters[0]["Repository"]) == 900
+    assert len(filters[1]["Repository"]) == 1
+
+
 @patch("azdo_harvest.search.CODE_SEARCH_PAGE_SIZE", 2)
 @patch("azdo_harvest.search.requests.post")
 def test_code_search_deduplicates_overlapping_pages(mock_post):

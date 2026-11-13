@@ -153,6 +153,22 @@ azdo-harvest search "api" --organization myorg --project myproject --repo-only
 azdo-harvest search "test" --organization myorg --project myproject --limit 50
 ```
 
+### Search a repository list
+
+Provide a text file containing one repository name per line. The names are
+sent to Azure DevOps in batches of 900 and the results are combined and
+deduplicated before display:
+
+```bash
+azdo-harvest search "TODO" \
+  --organization myorg \
+  --repository-list repositories.txt \
+  --limit 1000
+```
+
+Blank lines and lines beginning with `#` are ignored. The file produced by
+`python -m examples.list_repositories` can be used directly.
+
 When the limit is greater than 1,000, searches are requested in 1,000-result
 pages using Azure DevOps' `$skip` parameter. For example:
 
@@ -198,7 +214,8 @@ Arguments:
 
 Options:
   -o, --organization TEXT  Azure DevOps organization name [required]
-  -p, --project TEXT       Project name [required]
+  -p, --project TEXT       Project name (optional)
+  --repository-list PATH   File with one repository name per line (batches of 900)
   --pat TEXT              Personal Access Token (or set AZDO_PAT env var)
   --auth-method [pat|az-cli]  Authentication method (or AZDO_AUTH_METHOD) [default: pat]
   --file-only             Search only in file contents
